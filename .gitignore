@@ -1,0 +1,25 @@
+# --- Strumenti di Sviluppo e Testing ---
+# File temporanei di test, coperture e profili di performance
+*.test
+*.out
+*.prof
+/coverage.txt
+
+# --- Variabili d'Ambiente e Segreti ---
+.env
+.env.local
+.env.*.local
+
+# --- Cache dei Tool di Go ---
+.go/
+
+# --- Cache e file temporanei dell'Editor/OS ---
+.DS_Store
+.netrwhist
+*~
+*.swp
+.idea/
+.vscode/
+
+# --- File di esempi, temporanei ---
+message.txt
