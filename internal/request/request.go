@@ -7,6 +7,13 @@ import (
 	"strings"
 )
 
+type RequestStatus int
+
+const (
+	requestInizialided RequestStatus = iota
+	requestDone
+)
+
 type Request struct {
 	RequestLine RequestLine
 }
@@ -37,7 +44,15 @@ func parseRequestLine(b []byte) (*RequestLine, error) {
 		return nil, errors.New("Wrong request, missing CRLF.")
 	}
 	line := string(b[:i])
-	s := strings.Fields(line)
+	requestLine, err := requestLineFromString(line)
+	if err != nil {
+		return nil, err
+	}
+	return requestLine, nil
+}
+
+func requestLineFromString(str string) (*RequestLine, error) {
+	s := strings.Fields(str)
 	if len(s) != 3 {
 		return nil, errors.New("Wrong request line format.")
 	}
