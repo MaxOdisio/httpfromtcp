@@ -7,15 +7,19 @@ import (
 	"strings"
 )
 
-type RequestStatus int
+const bufferSize = 8
+const crlf = "\r\n"
+
+type requestState int
 
 const (
-	requestInizialided RequestStatus = iota
+	requestInizialided requestState = iota
 	requestDone
 )
 
 type Request struct {
 	RequestLine RequestLine
+	state       requestState
 }
 
 type RequestLine struct {
@@ -24,31 +28,75 @@ type RequestLine struct {
 	Method        string
 }
 
-func RequestFromReader(reader io.Reader) (*Request, error) {
-	b, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
+func (r *Request) parse(data []byte) (int, error) {
+	switch r.state {
+	case requestInizialided:
+		n, reqLine, err := parseRequestLine(data)
+		if err != nil {
+			// something actually went wrong
+			return 0, err
+		}
+		if n == 0 {
+			// just need more data
+			return 0, nil
+		}
+		r.RequestLine = *reqLine
+		r.state = requestDone
+		return n, nil
+	case requestDone:
+		return 0, errors.New("Error: trying to read data in a done state.")
+	default:
+		return 0, errors.New("Error: uknown state")
 	}
-
-	reqLine, err := parseRequestLine(b)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Request{RequestLine: *reqLine}, nil
 }
 
-func parseRequestLine(b []byte) (*RequestLine, error) {
-	i := bytes.Index(b, []byte("\r\n"))
+func RequestFromReader(reader io.Reader) (*Request, error) {
+	buf := make([]byte, bufferSize)
+	readToIndex := 0
+	req := &Request{
+		state: requestInizialided,
+	}
+
+	for req.state != requestDone {
+		if readToIndex == len(buf) {
+			newBuf := make([]byte, len(buf)*2)
+			copy(newBuf, buf)
+			buf = newBuf
+		}
+
+		numBytesRead, err := reader.Read(buf[readToIndex:])
+		if err != nil {
+			if err == io.EOF {
+				req.state = requestDone
+				break
+			}
+			return nil, err
+		}
+
+		readToIndex += numBytesRead
+
+		bytesParsed, err := req.parse(buf[:readToIndex])
+		if err != nil {
+			return nil, err
+		}
+
+		copy(buf, buf[bytesParsed:])
+		readToIndex -= bytesParsed
+	}
+	return req, nil
+}
+
+func parseRequestLine(b []byte) (int, *RequestLine, error) {
+	i := bytes.Index(b, []byte(crlf))
 	if i == -1 {
-		return nil, errors.New("Wrong request, missing CRLF.")
+		return 0, nil, nil
 	}
 	line := string(b[:i])
-	requestLine, err := requestLineFromString(line)
+	reqLine, err := requestLineFromString(line)
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
-	return requestLine, nil
+	return i + 2, reqLine, nil
 }
 
 func requestLineFromString(str string) (*RequestLine, error) {
