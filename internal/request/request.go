@@ -13,7 +13,7 @@ const crlf = "\r\n"
 type requestState int
 
 const (
-	requestInizialided requestState = iota
+	requestInitialized requestState = iota
 	requestDone
 )
 
@@ -30,7 +30,7 @@ type RequestLine struct {
 
 func (r *Request) parse(data []byte) (int, error) {
 	switch r.state {
-	case requestInizialided:
+	case requestInitialized:
 		n, reqLine, err := parseRequestLine(data)
 		if err != nil {
 			// something actually went wrong
@@ -54,7 +54,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	buf := make([]byte, bufferSize)
 	readToIndex := 0
 	req := &Request{
-		state: requestInizialided,
+		state: requestInitialized,
 	}
 
 	for req.state != requestDone {
@@ -65,15 +65,17 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		}
 
 		numBytesRead, err := reader.Read(buf[readToIndex:])
+		readToIndex += numBytesRead
 		if err != nil {
 			if err == io.EOF {
-				req.state = requestDone
+				req.parse(buf[:readToIndex]) // fa il parse dei dati rimasti
+				if req.state != requestDone {
+					return nil, errors.New("incomplete request: unexpected EOF")
+				}
 				break
 			}
 			return nil, err
 		}
-
-		readToIndex += numBytesRead
 
 		bytesParsed, err := req.parse(buf[:readToIndex])
 		if err != nil {
