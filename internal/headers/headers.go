@@ -40,6 +40,11 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	// Isoliamo il valore (i byte DOPO il ':') e togliamo gli spazi
 	val := strings.TrimSpace(string(lineBytes[idx+1:]))
 
+	// controllo se esiste già la chiave negli headers
+	if v, ok := h[kLower]; ok {
+		val = strings.Join([]string{v, val}, ", ")
+	}
+
 	// e aggiungo il nuovo header
 	h[kLower] = val
 
