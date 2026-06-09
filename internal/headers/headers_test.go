@@ -17,7 +17,17 @@ func TestParseHeaders(t *testing.T) {
 	n, done, err := headers.Parse(data)
 	require.NoError(err)
 	require.NotNil(headers)
-	assert.Equal("localhost:42069", headers["Host"])
+	assert.Equal("localhost:42069", headers["host"])
+	assert.Equal(23, n)
+	assert.False(done)
+
+	// Test: Valid single header with capital letters on key
+	headers = NewHeaders()
+	data = []byte("HoSt: localhost:42069\r\n\r\n")
+	n, done, err = headers.Parse(data)
+	require.NoError(err)
+	require.NotNil(headers)
+	assert.Equal("localhost:42069", headers["host"])
 	assert.Equal(23, n)
 	assert.False(done)
 
@@ -27,7 +37,7 @@ func TestParseHeaders(t *testing.T) {
 	n, done, err = headers.Parse(data)
 	require.NoError(err)
 	require.NotNil(headers)
-	assert.Equal("localhost:42069", headers["Host"])
+	assert.Equal("localhost:42069", headers["host"])
 	assert.Equal(34, n)
 	assert.False(done)
 
@@ -38,7 +48,7 @@ func TestParseHeaders(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(headers)
 	assert.Equal("localhost:42069", headers["host"])
-	assert.Equal("curl/7.81.0", headers["User-Agent"])
+	assert.Equal("curl/7.81.0", headers["user-agent"])
 	assert.Equal(25, n)
 	assert.False(done)
 
@@ -61,6 +71,14 @@ func TestParseHeaders(t *testing.T) {
 	// Test: Invalid spacing header between key and colon
 	headers = NewHeaders()
 	data = []byte("Host : localhost:42069\r\n\r\n")
+	n, done, err = headers.Parse(data)
+	require.Error(err)
+	assert.Equal(0, n)
+	assert.False(done)
+
+	// Test: Invalid character in key
+	headers = NewHeaders()
+	data = []byte("H©st: localhost:42069\r\n\r\n")
 	n, done, err = headers.Parse(data)
 	require.Error(err)
 	assert.Equal(0, n)

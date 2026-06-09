@@ -21,24 +21,27 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		return 2, true, nil // 2 sono i byte di CRLF
 	}
 
-	line := string(data[:i])
-	idx := strings.Index(line, ":")
+	// lavoro sui bytes per trovare il separatore ":" per migliorare le prestazioni (non alloca stringhe se non va bene l'header)
+	lineBytes := data[:i]
+	idx := bytes.IndexByte(lineBytes, ':')
 	if idx == -1 {
 		return 0, false, errors.New("wrong header format: missing colon")
 	}
 
-	kWithColon := line[:idx+1]
-	val := strings.TrimSpace(line[idx+1:])
+	// isolo la chiave prima del separatore
+	keyBytes := lineBytes[:idx]
 
-	if ok := validateKey(kWithColon); !ok {
+	if !validateKey(keyBytes) {
 		return 0, false, errors.New("wrong KEY format")
 	}
 
-	// pulisco la Key per salvare senza ":"
-	kClean := line[:idx]
+	kLower := strings.ToLower(string(keyBytes))
+
+	// Isoliamo il valore (i byte DOPO il ':') e togliamo gli spazi
+	val := strings.TrimSpace(string(lineBytes[idx+1:]))
 
 	// e aggiungo il nuovo header
-	h[kClean] = val
+	h[kLower] = val
 
 	return i + 2, false, nil
 }
@@ -47,27 +50,27 @@ func NewHeaders() Headers {
 	return make(Headers)
 }
 
-func validateKey(s string) bool {
-	// 1. La stringa deve finire con ":" ed essere lunga almeno 2 caratteri (es. "A:")
-	if len(s) < 2 || !strings.HasSuffix(s, ":") {
+func validateKey(key []byte) bool {
+	// lunghezza minima di 1 carattere (come richiesto dall'RFC)
+	if len(key) == 0 {
 		return false
 	}
 
-	// 2. Isoliamo tutto ciò che c'è PRIMA del ":"
-	rest := s[:len(s)-1]
+	for i := 0; i < len(key); i++ {
+		b := key[i]
 
-	// 3. Controlliamo il PRIMO carattere del resto (deve essere MAIUSCOLO 'A'-'Z')
-	if rest[0] < 'A' || rest[0] > 'Z' {
-		return false
-	}
-
-	// 4. Controlliamo tutti i caratteri SUCCESSIVI (non devono esserci spazi)
-	for i := 1; i < len(rest); i++ {
-		if rest[i] == ' ' {
+		switch {
+		case b >= 'a' && b <= 'z':
+		case b >= 'A' && b <= 'Z':
+		case b >= '0' && b <= '9':
+		case b == '!' || b == '#' || b == '$' || b == '%' || b == '&' || b == '\'' ||
+			b == '*' || b == '+' || b == '-' || b == '.' || b == '^' || b == '_' ||
+			b == '`' || b == '|' || b == '~':
+			// Carattere valido, continua
+		default:
 			return false
 		}
 	}
 
-	// Se ha superato tutti i controlli, la stringa è valida
 	return true
 }
