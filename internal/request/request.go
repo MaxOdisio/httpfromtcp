@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"strings"
+
+	"github.com/maxodisio/httpfromtcp/internal/headers"
 )
 
 const bufferSize = 8
@@ -14,11 +16,13 @@ type requestState int
 
 const (
 	requestInitialized requestState = iota
+	requestStateParsingHeaders
 	requestDone
 )
 
 type Request struct {
 	RequestLine RequestLine
+	Headers     headers.Headers
 	state       requestState
 }
 
@@ -41,7 +45,22 @@ func (r *Request) parse(data []byte) (int, error) {
 			return 0, nil
 		}
 		r.RequestLine = *reqLine
-		r.state = requestDone
+		r.state = requestStateParsingHeaders
+		return n, nil
+	case requestStateParsingHeaders:
+		n, done, err := r.Headers.Parse(data)
+		if err != nil {
+			// real errors
+			return 0, err
+		}
+		if n == 0 {
+			// need more data
+			return 0, nil
+		}
+		if done {
+			r.state = requestDone
+			return n, nil
+		}
 		return n, nil
 	case requestDone:
 		return 0, errors.New("trying to read data in a done state.")
@@ -53,8 +72,10 @@ func (r *Request) parse(data []byte) (int, error) {
 func RequestFromReader(reader io.Reader) (*Request, error) {
 	buf := make([]byte, bufferSize)
 	readToIndex := 0
+	totalBytesParsed := 0
 	req := &Request{
-		state: requestInitialized,
+		Headers: headers.NewHeaders(),
+		state:   requestInitialized,
 	}
 
 	for req.state != requestDone {
@@ -84,6 +105,8 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		totalBytesParsed += bytesParsed
 
 		copy(buf, buf[bytesParsed:])
 		readToIndex -= bytesParsed

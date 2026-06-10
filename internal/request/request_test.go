@@ -63,6 +63,67 @@ func TestRequestFromReader(t *testing.T) {
 	r, err = RequestFromReader(strings.NewReader("/coffee HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n"))
 	require.Error(err)
 	assert.Nil(r)
+
+	// Test: Standard Headers
+	reader = &chunkReader{
+		data:            "GET / HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.NoError(err)
+	require.NotNil(r)
+	assert.Equal("localhost:42069", r.Headers["host"])
+	assert.Equal("curl/7.81.0", r.Headers["user-agent"])
+	assert.Equal("*/*", r.Headers["accept"])
+
+	// Test: Malformed Header
+	reader = &chunkReader{
+		data:            "GET / HTTP/1.1\r\nHost localhost:42069\r\n\r\n",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.Error(err)
+
+	// Test: Duplicate Headers
+	reader = &chunkReader{
+		data:            "GET / HTTP/1.1\r\nUser-Agent: my-app\r\nUser-Agent: curl/7.81.0\r\n\r\n",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.NoError(err)
+	require.NotNil(r)
+	assert.Equal("my-app, curl/7.81.0", r.Headers["user-agent"])
+
+	// Test: Case Insensitive Headers
+	reader = &chunkReader{
+		data:            "GET / HTTP/1.1\r\nHoST: localhost:42069\r\nuser-AGEnt: curl/7.81.0\r\nAccePT: */*\r\n\r\n",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.NoError(err)
+	require.NotNil(r)
+	assert.Equal("localhost:42069", r.Headers["host"])
+	assert.Equal("curl/7.81.0", r.Headers["user-agent"])
+	assert.Equal("*/*", r.Headers["accept"])
+
+	// Test: Missing End of Headers
+	reader = &chunkReader{
+		data:            "GET / HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.Error(err)
+
+	// Test: Empty Headers
+	reader = &chunkReader{
+		data:            "GET / HTTP/1.1\r\n\r\n",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.NoError(err)
+	require.NotNil(r)
+	require.Empty(r.Headers)
+	assert.Equal("GET", r.RequestLine.Method)
 }
 
 func TestParseRequestLine(t *testing.T) {
