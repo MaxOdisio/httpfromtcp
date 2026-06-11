@@ -27,8 +27,8 @@ Di seguito trovi lo stato di avanzamento del progetto:
 | **2** | **TCP Sockets** | 🟢 Completato | Gestione del ciclo di `Accept` e connessioni TCP affidabili. |
 | **3** | **HTTP Requests Intro** | 🟢 Completato | Studio della struttura anatomica di una richiesta web. |
 | **4** | **Request Lines Parsing** | 🟢 Completato | Estrazione di Metodo (GET/POST), URI e Versione. |
-| **5** | **HTTP Headers** | 🟡 In Corso | Mappatura chiave-valore degli header. |
-| **6** | **HTTP Body** | 🔴 Pianificato | Lettura e processing del payload della richiesta. |
+| **5** | **HTTP Headers** | 🟢 Completato | Mappatura chiave-valore degli header. |
+| **6** | **HTTP Body** | 🟡 In Corso  | Lettura e processing del payload della richiesta. |
 | **7** | **HTTP Responses** | 🔴 Pianificato | Generazione e invio di risposte conformi al client. |
 | **8** | **Chunked Encoding** | 🔴 Pianificato | Streaming dei dati a segmenti. |
 | **9** | **Binary Data** | 🔴 Pianificato | Gestione dei dati binari e versioni del protocollo. |
