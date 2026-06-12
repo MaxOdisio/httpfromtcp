@@ -31,6 +31,7 @@ func (cr *chunkReader) Read(p []byte) (n int, err error) {
 	return n, nil
 }
 
+// ----------- Test RequestFromReader ------------
 func TestRequestFromReader(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -81,7 +82,7 @@ func TestRequestFromReader(t *testing.T) {
 		data:            "GET / HTTP/1.1\r\nHost localhost:42069\r\n\r\n",
 		numBytesPerRead: 3,
 	}
-	r, err = RequestFromReader(reader)
+	_, err = RequestFromReader(reader)
 	require.Error(err)
 
 	// Test: Duplicate Headers
@@ -124,8 +125,61 @@ func TestRequestFromReader(t *testing.T) {
 	require.NotNil(r)
 	require.Empty(r.Headers)
 	assert.Equal("GET", r.RequestLine.Method)
+
+	// Test: Standard Body
+	reader = &chunkReader{
+		data: "POST /submit HTTP/1.1\r\n" +
+			"Host: localhost:42069\r\n" +
+			"Content-Length: 13\r\n" +
+			"\r\n" +
+			"hello world!\n",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.NoError(err)
+	require.NotNil(r)
+	assert.Equal("hello world!", string(r.Body))
+
+	// Test: Valid Empty Body with 0 content length declared
+	reader = &chunkReader{
+		data: "POST /submit HTTP 1.1\r\n" +
+			"Host: localhost:42069\r\n" +
+			"Content-Length: 0\r\n" +
+			"\r\n",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.NoError(err)
+	require.NotNil(r)
+	assert.Empty(r.Body)
+
+	// Test: Valid Empty Body with NO content length declared
+	reader = &chunkReader{
+		data: "POST /submit HTTP 1.1\r\n" +
+			"Host: localhost:42069\r\n" +
+			"\r\n",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.NoError(err)
+	require.NotNil(r)
+	assert.Empty(r.Body)
+	assert.NotContains(r.Headers, "content-length")
+
+	// Test: Body shorter than reported content length
+	reader = &chunkReader{
+		data: "POST /submit HTTP/1.1\r\n" +
+			"Host: localhost:42069\r\n" +
+			"Content-Length: 20\r\n" +
+			"\r\n" +
+			"partial content",
+		numBytesPerRead: 3,
+	}
+	_, err = RequestFromReader(reader)
+	require.Error(err)
 }
 
+// ----------- Test ParseRequestLine ------------
 func TestParseRequestLine(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
