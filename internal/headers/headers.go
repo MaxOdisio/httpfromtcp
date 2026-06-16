@@ -51,6 +51,12 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	return i + 2, false, nil
 }
 
+func (h Headers) Get(key string) (string, bool) {
+	k := strings.TrimSpace(strings.ToLower(key))
+	v, ok := h[k]
+	return v, ok
+}
+
 func NewHeaders() Headers {
 	return make(Headers)
 }

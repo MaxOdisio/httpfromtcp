@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/maxodisio/httpfromtcp/internal/headers"
@@ -17,14 +18,16 @@ type requestState int
 const (
 	requestInitialized requestState = iota
 	requestStateParsingHeaders
+	requestStateParsingBody
 	requestDone
 )
 
 type Request struct {
-	RequestLine RequestLine
-	Headers     headers.Headers
-	Body        []byte
-	state       requestState
+	RequestLine   RequestLine
+	Headers       headers.Headers
+	Body          []byte
+	contentLength int
+	state         requestState
 }
 
 type RequestLine struct {
@@ -34,6 +37,21 @@ type RequestLine struct {
 }
 
 func (r *Request) parse(data []byte) (int, error) {
+	totalBytesParsed := 0
+	for r.state != requestDone {
+		n, err := r.parseSingle(data[totalBytesParsed:])
+		if err != nil {
+			return 0, err
+		}
+		totalBytesParsed += n
+		if n == 0 {
+			break
+		}
+	}
+	return totalBytesParsed, nil
+}
+
+func (r *Request) parseSingle(data []byte) (int, error) {
 	switch r.state {
 	case requestInitialized:
 		n, reqLine, err := parseRequestLine(data)
@@ -59,9 +77,30 @@ func (r *Request) parse(data []byte) (int, error) {
 			return 0, nil
 		}
 		if done {
-			r.state = requestDone
+			cl, ok := r.Headers.Get("Content-Length")
+			if !ok {
+				r.state = requestDone
+			} else {
+				clInt, err := strconv.Atoi(cl)
+				if err != nil {
+					return 0, err
+				}
+				r.contentLength = clInt
+				r.state = requestStateParsingBody
+			}
 			return n, nil
 		}
+		return n, nil
+	case requestStateParsingBody:
+		r.Body = append(r.Body, data...)
+		n, err := checkBody(r.Body, r.contentLength)
+		if err != nil {
+			return 0, err
+		}
+		if n != r.contentLength {
+			return len(data), nil
+		}
+		r.state = requestDone
 		return n, nil
 	case requestDone:
 		return 0, errors.New("trying to read data in a done state.")
@@ -76,6 +115,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	totalBytesParsed := 0
 	req := &Request{
 		Headers: headers.NewHeaders(),
+		Body:    make([]byte, 0),
 		state:   requestInitialized,
 	}
 
@@ -154,4 +194,14 @@ func requestLineFromString(str string) (*RequestLine, error) {
 		RequestTarget: reqTarget,
 		Method:        method,
 	}, nil
+}
+
+func checkBody(data []byte, contentLength int) (int, error) {
+	if len(data) == contentLength {
+		return contentLength, nil
+	} else if len(data) > contentLength {
+		return 0, errors.New("content length different from declared")
+	} else {
+		return len(data), nil
+	}
 }

@@ -138,11 +138,11 @@ func TestRequestFromReader(t *testing.T) {
 	r, err = RequestFromReader(reader)
 	require.NoError(err)
 	require.NotNil(r)
-	assert.Equal("hello world!", string(r.Body))
+	assert.Equal("hello world!\n", string(r.Body))
 
 	// Test: Valid Empty Body with 0 content length declared
 	reader = &chunkReader{
-		data: "POST /submit HTTP 1.1\r\n" +
+		data: "POST /submit HTTP/1.1\r\n" +
 			"Host: localhost:42069\r\n" +
 			"Content-Length: 0\r\n" +
 			"\r\n",
@@ -155,7 +155,7 @@ func TestRequestFromReader(t *testing.T) {
 
 	// Test: Valid Empty Body with NO content length declared
 	reader = &chunkReader{
-		data: "POST /submit HTTP 1.1\r\n" +
+		data: "POST /submit HTTP/1.1\r\n" +
 			"Host: localhost:42069\r\n" +
 			"\r\n",
 		numBytesPerRead: 3,
@@ -165,6 +165,20 @@ func TestRequestFromReader(t *testing.T) {
 	require.NotNil(r)
 	assert.Empty(r.Body)
 	assert.NotContains(r.Headers, "content-length")
+
+	// Test: Valid NO Content Length header but Body exist (it will be ignored)
+	reader = &chunkReader{
+		data: "POST /submit HTTP/1.1\r\n" +
+			"Host: localhost:42069\r\n" +
+			"\r\n" +
+			"just ignore me plz",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.NoError(err)
+	require.NotNil(r)
+	assert.Empty(r.Body)
+	assert.Equal("localhost:42069", r.Headers["host"])
 
 	// Test: Body shorter than reported content length
 	reader = &chunkReader{
