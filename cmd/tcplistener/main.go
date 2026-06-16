@@ -41,6 +41,10 @@ func main() {
 					fmt.Printf("- %s: %s\n", k, v)
 				}
 			}
+			if len(req.Body) != 0 {
+				fmt.Println("Body:")
+				fmt.Println(string(req.Body))
+			}
 			fmt.Println("===========================")
 			fmt.Printf("Connection closed for %s\n", c.RemoteAddr())
 		}(conn)
