@@ -41,7 +41,7 @@ const (
 )
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
-	buf := make([]byte, bufferSize, bufferSize)
+	buf := make([]byte, bufferSize)
 	readToIndex := 0
 	req := &Request{
 		state:   requestStateInitialized,
@@ -192,4 +192,3 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 		return 0, fmt.Errorf("unknown state")
 	}
 }
-
