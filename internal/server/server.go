@@ -5,19 +5,14 @@ import (
 	"log"
 	"net"
 	"sync/atomic"
+
+	"github.com/maxodisio/httpfromtcp/internal/response"
 )
 
 type Server struct {
 	listener net.Listener
 	closed   atomic.Bool
 }
-
-type serverState int
-
-const (
-	serverOpen serverState = iota
-	serverClosed
-)
 
 func Serve(port int) (*Server, error) {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
@@ -46,7 +41,7 @@ func (s *Server) listen() {
 			if s.closed.Load() {
 				return
 			}
-			log.Printf("Error accepting connection: %v", err)
+			log.Printf("Error accepting connection: %v\n", err)
 			continue
 		}
 
@@ -57,11 +52,16 @@ func (s *Server) listen() {
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
 
-	response := "HTTP/1.1 200 OK\r\n" +
-		"Content-Type: text/plain\r\n" +
-		"Content-Length: 13\r\n" +
-		"\r\n" +
-		"Hello World!\n"
+	err := response.WriteStatusLine(conn, 200)
+	if err != nil {
+		log.Printf("Error writing status line: %v\n", err)
+		return
+	}
 
-	conn.Write([]byte(response))
+	h := response.GetDefaultHeaders(0)
+	err = response.WriteHeaders(conn, h)
+	if err != nil {
+		log.Printf("Error writing headers: %v\n", err)
+		return
+	}
 }
