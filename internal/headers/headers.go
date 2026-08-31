@@ -62,6 +62,16 @@ func (h Headers) Set(key, value string) {
 	h[key] = value
 }
 
+func (h Headers) Replace(key, value string) error {
+	key = strings.ToLower(key)
+	_, ok := h[key]
+	if !ok {
+		return fmt.Errorf("Invalid key: header \"%s\" is missing.", key)
+	}
+	h[key] = value
+	return nil
+}
+
 var tokenChars = []byte{'!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~'}
 
 // validTokens checks if the data contains only valid tokens
@@ -84,4 +94,3 @@ func isTokenChar(c byte) bool {
 
 	return slices.Contains(tokenChars, c)
 }
-
