@@ -29,8 +29,8 @@ Di seguito trovi lo stato di avanzamento del progetto:
 | **4** | **Request Lines Parsing** | 🟢 Completato | Estrazione di Metodo (GET/POST), URI e Versione. |
 | **5** | **HTTP Headers** | 🟢 Completato | Mappatura chiave-valore degli header. |
 | **6** | **HTTP Body** | 🟢 Completato | Lettura e processing del payload della richiesta. |
-| **7** | **HTTP Responses** | 🟡 In Corso | Generazione e invio di risposte conformi al client. |
-| **8** | **Chunked Encoding** | 🔴 Pianificato | Streaming dei dati a segmenti. |
+| **7** | **HTTP Responses** |  🟢 Completato | Generazione e invio di risposte conformi al client. |
+| **8** | **Chunked Encoding** |  🟡 In Corso | Streaming dei dati a segmenti. |
 | **9** | **Binary Data** | 🔴 Pianificato | Gestione dei dati binari e versioni del protocollo. |
 
 ---
