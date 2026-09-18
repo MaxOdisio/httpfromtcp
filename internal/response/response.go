@@ -42,8 +42,11 @@ const (
 	writerStateInit writerState = iota
 	writerStateStatusWritten
 	writerStateHeadersWritten
+	writerStateChunking
 	writerStateDone
 )
+
+const crlf = "\r\n"
 
 func (w *Writer) WriteStatusLine(statusCode StatusCode) error {
 	if w.state != writerStateInit {
@@ -89,6 +92,48 @@ func (w *Writer) WriteBody(p []byte) (int, error) {
 
 	b, err := w.writer.Write(p)
 	return b, err
+}
+
+func (w *Writer) WriteChunkedBody(p []byte) (int, error) {
+	if w.state != writerStateHeadersWritten && w.state != writerStateChunking {
+		return 0, fmt.Errorf("invalid state for writing chunked body.")
+	}
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	h := fmt.Sprintf("%x%s", len(p), crlf)
+	_, err := w.writer.Write([]byte(h))
+	if err != nil {
+		return 0, err
+	}
+
+	n, err := w.writer.Write(p)
+	if err != nil {
+		return n, err
+	}
+
+	_, err = w.writer.Write([]byte(crlf))
+	if err != nil {
+		return n, err
+	}
+
+	w.state = writerStateChunking
+	return n, nil
+}
+
+func (w *Writer) WriteChunkedBodyDone() (int, error) {
+	if w.state != writerStateHeadersWritten && w.state != writerStateChunking {
+		return 0, fmt.Errorf("invalid state for completing chunked body")
+	}
+
+	doneChunk := fmt.Sprintf("0%s%s", crlf, crlf)
+	n, err := w.writer.Write([]byte(doneChunk))
+	if err == nil {
+		w.state = writerStateDone
+	}
+
+	return n, err
 }
 
 func GetDefaultHeaders(contentLen int) headers.Headers {
