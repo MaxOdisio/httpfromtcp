@@ -88,9 +88,12 @@ func (w *Writer) WriteBody(p []byte) (int, error) {
 	if w.state != writerStateHeadersWritten && w.state != writerStateDone {
 		return 0, fmt.Errorf("you have to write headers before body.")
 	}
-	w.state = writerStateDone
 
 	b, err := w.writer.Write(p)
+	if err == nil {
+		w.state = writerStateDone
+	}
+
 	return b, err
 }
 
@@ -134,6 +137,33 @@ func (w *Writer) WriteChunkedBodyDone() (int, error) {
 	}
 
 	return n, err
+}
+
+func (w *Writer) WriteTrailers(h headers.Headers) error {
+	if w.state != writerStateHeadersWritten && w.state != writerStateChunking {
+		return fmt.Errorf("can't write trailers: response not chunked or already done")
+	}
+
+	if _, err := w.writer.Write([]byte("0" + crlf)); err != nil {
+		return err
+	}
+
+	var t []byte
+	for k, val := range h {
+		t = append(t, k...)
+		t = append(t, ": "...)
+		t = append(t, val...)
+		t = append(t, crlf...)
+	}
+
+	t = append(t, crlf...)
+
+	_, err := w.writer.Write(t)
+	if err == nil {
+		w.state = writerStateDone
+	}
+
+	return err
 }
 
 func GetDefaultHeaders(contentLen int) headers.Headers {
