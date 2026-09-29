@@ -102,6 +102,9 @@ func problemHandler(w *response.Writer, req *request.Request) {
 		w.WriteHeaders(h)
 		w.WriteBody(body)
 		return
+	case "/video":
+		handleVideo(w, req)
+		return
 	default:
 		w.WriteStatusLine(response.StatusOK)
 		body := respond200()
@@ -184,4 +187,36 @@ func handleHttpbinProxy(w *response.Writer, targetPath string) {
 	}
 
 	log.Printf("Proxy stream completed successfully. Total bytes transferred: %d", totalBytes)
+}
+
+func handleVideo(w *response.Writer, req *request.Request) {
+	method := req.RequestLine.Method
+
+	if method != "GET" {
+		w.WriteStatusLine(response.StatusBadRequest)
+		body := respond400()
+		h := response.GetDefaultHeaders(len(body))
+		h.Replace("Content-Type", "text/html")
+		w.WriteHeaders(h)
+		w.WriteBody(body)
+		return
+	}
+
+	data, err := os.ReadFile("assets/vim.mp4")
+	if err != nil {
+		w.WriteStatusLine(response.StatusError)
+		body := respond500()
+		h := response.GetDefaultHeaders(len(body))
+		h.Replace("Content-Type", "text/html")
+		w.WriteHeaders(h)
+		w.WriteBody(body)
+		return
+	}
+
+	w.WriteStatusLine(response.StatusOK)
+	body := data
+	h := response.GetDefaultHeaders(len(body))
+	h.Replace("Content-Type", "video/mp4")
+	w.WriteHeaders(h)
+	w.WriteBody(body)
 }
