@@ -30,8 +30,8 @@ Di seguito trovi lo stato di avanzamento del progetto:
 | **5** | **HTTP Headers** | 🟢 Completato | Mappatura chiave-valore degli header. |
 | **6** | **HTTP Body** | 🟢 Completato | Lettura e processing del payload della richiesta. |
 | **7** | **HTTP Responses** |  🟢 Completato | Generazione e invio di risposte conformi al client. |
-| **8** | **Chunked Encoding** |  🟡 In Corso | Streaming dei dati a segmenti. |
-| **9** | **Binary Data** | 🔴 Pianificato | Gestione dei dati binari e versioni del protocollo. |
+| **8** | **Chunked Encoding** |  🟢 Completato | Streaming dei dati a segmenti. |
+| **9** | **Binary Data** | 🟡 In Corso | Gestione dei dati binari e versioni del protocollo. |
 
 ---
 
