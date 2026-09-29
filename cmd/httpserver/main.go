@@ -1,12 +1,15 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -135,6 +138,7 @@ func handleHttpbinProxy(w *response.Writer, targetPath string) {
 		}
 	}
 
+	resHeaders.Set("Trailer", "X-Content-SHA256, X-Content-Length")
 	resHeaders.Set("Transfer-Encoding", "chunked")
 	resHeaders.Set("Connection", "close")
 
@@ -142,13 +146,17 @@ func handleHttpbinProxy(w *response.Writer, targetPath string) {
 	w.WriteHeaders(resHeaders)
 
 	var totalBytes int
+	var fullBody []byte
 	buf := make([]byte, 32)
 	for {
 		n, err := resp.Body.Read(buf)
 		if n > 0 {
+			chunk := buf[:n]
 			totalBytes += n
+			fullBody = append(fullBody, chunk...)
+
 			fmt.Printf("Read %d bytes from httpbingo.org\n", n)
-			_, wErr := w.WriteChunkedBody(buf[:n])
+			_, wErr := w.WriteChunkedBody(chunk)
 			if wErr != nil {
 				log.Printf("Error writing chunk to client: %v", wErr)
 				return
@@ -164,9 +172,15 @@ func handleHttpbinProxy(w *response.Writer, targetPath string) {
 		}
 	}
 
-	_, err = w.WriteChunkedBodyDone()
-	if err != nil {
-		log.Printf("Error writing done chunk: %v", err)
+	hsh := sha256.Sum256(fullBody)
+	stringHsh := hex.EncodeToString(hsh[:])
+
+	trailers := headers.NewHeaders()
+	trailers.Set("X-Content-SHA256", stringHsh)
+	trailers.Set("X-Content-Length", strconv.Itoa(len(fullBody)))
+
+	if err = w.WriteTrailers(trailers); err != nil {
+		log.Printf("Error writing trailers: %v", err)
 	}
 
 	log.Printf("Proxy stream completed successfully. Total bytes transferred: %d", totalBytes)
